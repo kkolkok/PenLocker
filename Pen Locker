@@ -1,0 +1,245 @@
+#include <Servo.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#define OLED_RESET -1
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+Adafruit_SSD1306 display(OLED_RESET);
+
+Servo ServoControl;
+
+String command;
+int pos = 0;
+int StartUpSweep = 1;
+int FirstNumber = 0;
+int FirstNumberStatus = 1;
+int FirstNumberGrant = 0;
+int SecondNumber = 0;
+int SecondNumberStatus = 0;
+int SecondNumberGrant = 0;
+int ThirdNumber = 0;
+int ThirdNumberStatus = 0;
+int ThirdNumberGrant = 0;
+int SecondConfirmStatus = 0;
+int ThirdConfirmStatus = 0;
+
+
+void setup() {
+  Serial.begin(9600);
+  ServoControl.attach(9);
+  ServoControl.write(0);
+  display.begin();
+  display.clearDisplay();
+  pinMode(4, INPUT_PULLUP); //+1 Number input
+  pinMode(5, INPUT_PULLUP); 
+  pinMode(6, INPUT_PULLUP); 
+}
+
+void loop() {
+
+   display.clearDisplay();
+   display.setTextSize(4);
+   display.setTextColor(WHITE);
+   display.setCursor(0, 0);
+   display.print("-");
+   display.print(FirstNumber);
+   display.print(SecondNumber);  
+   display.print(ThirdNumber);
+   display.print("-");      
+   display.display();
+
+
+
+
+
+          
+  if (StartUpSweep == 1){
+        Serial.println("42StartSweep");
+        ServoControl.write(42);
+        delay(500);
+        Serial.println("0StartSweep");
+        ServoControl.write(10);
+        StartUpSweep = 0;
+  }
+
+
+
+//First Number Control
+
+  if (digitalRead(4) == LOW && FirstNumberStatus == 1 && ThirdNumberStatus == 0){
+    FirstNumber = FirstNumber + 1;
+      if (FirstNumber > 9) {
+          FirstNumber = 9;
+       }
+  }
+
+
+   if (digitalRead(5) == LOW && FirstNumberStatus == 1 && ThirdNumberStatus == 0){
+    FirstNumber = FirstNumber - 1;
+      if (FirstNumber < 0) {
+          FirstNumber = 0;
+       }  
+    }
+  
+
+  if (digitalRead(6) == LOW && FirstNumberStatus == 1){
+    FirstNumberStatus = 0;
+    SecondNumberStatus = 1;
+  }
+
+
+
+
+
+// Second Number Control
+
+  if (digitalRead(4) == LOW && SecondNumberStatus == 1){
+    SecondNumber = SecondNumber + 1;
+    SecondConfirmStatus = 1;
+      if (SecondNumber > 9) {
+          SecondNumber = 9;
+       }
+  }
+
+
+   if (digitalRead(5) == LOW && SecondNumberStatus == 1){
+    SecondNumber = SecondNumber - 1;
+    SecondConfirmStatus = 1;
+      if (SecondNumber < 0) {
+          SecondNumber = 0;
+       }  
+    }
+
+
+  if (digitalRead(6) == LOW && SecondNumberStatus == 1 && SecondConfirmStatus == 1){
+    SecondNumberStatus = 0;
+    ThirdNumberStatus = 1;
+    SecondConfirmStatus = 0;
+  }
+
+
+
+
+
+// Third Number Control
+
+  if (digitalRead(4) == LOW && ThirdNumberStatus == 1 && FirstNumberStatus == 0){
+    ThirdNumber = ThirdNumber + 1;
+    ThirdConfirmStatus = 1;
+      if (ThirdNumber > 9) {
+          ThirdNumber = 9;
+       }
+  }
+
+
+   if (digitalRead(5) == LOW && ThirdNumberStatus == 1 && FirstNumberStatus == 0){
+    ThirdNumber = ThirdNumber - 1;
+    ThirdConfirmStatus = 1;
+      if (ThirdNumber < 0) {
+          ThirdNumber = 0;
+       }  
+    }
+
+
+//Password Verification 
+  if (digitalRead(6) == LOW && ThirdNumberStatus == 1 && ThirdConfirmStatus == 1){
+    ThirdNumberStatus = 0;
+    FirstNumberStatus = 1;
+    ThirdConfirmStatus = 0;
+    
+  //          if (FirstNumber == 4 ){
+    //          FirstNumberGrant = 1;
+      //        Serial.println("First Number Granted");
+        //      }
+//
+  //           if (SecondNumber == 2 ){
+    //          SecondNumberGrant = 1;
+      //        Serial.println("Second Number Granted");
+        //      }
+//
+  //            if (ThirdNumber == 0 ){
+    //          ThirdNumberGrant = 1;
+      //        Serial.println("Third Number Granted");
+        //      }
+
+              if (FirstNumber == 4 && SecondNumber == 2 && ThirdNumber == 0){
+              FirstNumberGrant = 1;
+              SecondNumberGrant = 1;
+              ThirdNumberGrant = 1;
+              Serial.println("All Grants Unlocked");
+              }
+
+
+
+           
+      if (FirstNumberGrant == 1 && SecondNumberGrant == 1 && ThirdNumberGrant == 1){
+        display.clearDisplay();
+        display.setTextSize(4);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 0);
+        display.print("UNLOCK");      
+        display.display();
+        Serial.println("Opening Latch");
+        ServoControl.write(42);
+        delay(5000);
+        FirstNumberStatus = 1;
+        FirstNumber = 0;
+        SecondNumber = 0;
+        ThirdNumber = 0;
+        FirstNumberGrant = 0;
+        SecondNumberGrant = 0;
+        ThirdNumberGrant = 0;
+         }
+  }
+
+
+
+//Closing Latch
+
+  if (digitalRead(5) == LOW && digitalRead(6) == LOW){
+    Serial.println("Button Close Latch");
+    ServoControl.write(10);
+    FirstNumberStatus = 1;
+    FirstNumber = 0;
+    SecondNumber = 0;
+    ThirdNumber = 0;
+    }
+
+
+  if(Serial.available()){
+    command = Serial.readStringUntil('\n');
+
+    if(command.equals("+")){
+            pos = pos + 10;
+                      if (pos > 42) {
+                       pos = 42;
+                    }
+            Serial.println(pos);
+            ServoControl.write(pos);
+    }
+    else if(command.equals("-")){
+            pos = pos - 10;
+                   if (pos < 0) {
+                       pos = 0;
+                    }
+            Serial.println(pos);
+            ServoControl.write(pos);
+    }
+    else if(command.equals("set0")){
+            pos = 0;
+            Serial.println(pos);
+            ServoControl.write(pos);
+            
+    }         
+    else if(command.equals("set42")){
+            pos = 42;
+            Serial.println(pos);
+            ServoControl.write(pos);
+  }
+  else {
+    Serial.println("Invalid command");
+  }
+  }
+}
